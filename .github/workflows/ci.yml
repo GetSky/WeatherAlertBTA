@@ -24,7 +24,7 @@ jobs:
         run: go test -v ./...
 
   build_and_push:
-    needs: [test]
+    needs: [ test ]
     runs-on: ubuntu-latest
     steps:
       - name: Login to Docker Hub
@@ -44,3 +44,28 @@ jobs:
         with:
           push: true
           tags: getsky/weather-alert-bot:latest
+
+  deploy:
+    needs: [ build_and_push ]
+    name: deploy image
+    runs-on: ubuntu-latest
+    steps:
+      - name: install ssh keys
+        run: |
+          install -m 600 -D /dev/null ~/.ssh/id_rsa
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} > ~/.ssh/known_hosts
+
+      - name: connect and pull
+        run: ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cd ${{ secrets.WORK_DIR }} && docker pull getsky/weather-alert-bot:latest &&   docker run -d --restart=always \
+          -e BOT_TOKEN=${{ secrets.BOT_TOKEN }} \
+          -e TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }} \
+          -e WEATHER_URL=${{ vars.WEATHER_URL }} \
+          -e CHART_WEATHER_URL=${{ vars.CHART_WEATHER_URL }} \
+          -e WIND_THRESHOLD=${{ vars.WIND_THRESHOLD }} \
+          -e POLL_INTERVAL=${{ vars.POLL_INTERVAL }} \
+          -e DELAY_TIME_IN_MINUTES=${{ vars.DELAY_TIME_IN_MINUTES }} \
+          getsky/weather-alert-bot && exit"
+
+      - name: cleanup
+        run: rm -rf ~/.ssh
