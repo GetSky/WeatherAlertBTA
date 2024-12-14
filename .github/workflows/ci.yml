@@ -39,7 +39,7 @@ jobs:
 
       - name: Set the release version
         run: |
-          release_version=$(echo "${{ github.ref }}" | sed 's/refs\/heads\/*\///')
+          release_version=$(echo "${{ github.ref }}" | sed 's|refs/heads/||;s|/|_|g')
           echo "Building release version $release_version"
           echo "RELEASE_VERSION=$release_version" >> $GITHUB_ENV
         shell: bash
