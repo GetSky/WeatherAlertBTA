@@ -3,8 +3,6 @@ name: Build & Deploy
 on:
   push:
     branches: [ "main", "feat/ci_**",  "refactor/ci_**", "fix/ci_**" ]
-  pull_request:
-    branches: [ "main" ]
 
 jobs:
   test:
