@@ -23,7 +23,7 @@ jobs:
       - name: Test
         run: go test -v ./...
 
-  build:
+  build-and-push:
     needs: [test]
     runs-on: ubuntu-latest
     steps:
