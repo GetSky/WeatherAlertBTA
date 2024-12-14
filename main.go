@@ -51,7 +51,7 @@ func init() {
 
 	chartWeatherURL = os.Getenv("CHART_WEATHER_URL")
 	if chartWeatherURL == "" {
-		url = "https://relay.sao.ru/tb/tcs/meteo/data/meteo_today.png"
+		chartWeatherURL = "https://relay.sao.ru/tb/tcs/meteo/data/meteo_today.png"
 	}
 
 	botToken = os.Getenv("BOT_TOKEN")
@@ -74,7 +74,7 @@ func init() {
 
 	thresholdStr := os.Getenv("WIND_THRESHOLD")
 	if thresholdStr == "" {
-		windThreshold = 2.2
+		windThreshold = 14.5
 	} else {
 		windThreshold, err = strconv.ParseFloat(thresholdStr, 64)
 		if err != nil {
