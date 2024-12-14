@@ -39,7 +39,7 @@ jobs:
 
       - name: Set the release version
         run: |
-          release_version=$(echo "${{ github.ref }}" | sed 's/refs\/heads\/.*\///')
+          release_version=$(echo "${{ github.ref }}" | sed 's/refs\/heads\/*\///')
           echo "Building release version $release_version"
           echo "RELEASE_VERSION=$release_version" >> $GITHUB_ENV
         shell: bash
@@ -49,13 +49,6 @@ jobs:
         with:
           push: true
           tags: getsky/weather-alert-bot:${{ env.RELEASE_VERSION }}
-
-      - name: Build and push latest version
-        if: github.ref == 'refs/heads/main'
-        uses: docker/build-push-action@v6
-        with:
-          push: true
-          tags: getsky/weather-alert-bot:latest
 
   deploy:
     needs: [ build_and_push ]
@@ -71,7 +64,7 @@ jobs:
 
       - name: connect and pull
         run: ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cd ${{ secrets.WORK_DIR }} &&
-          docker pull getsky/weather-alert-bot:latest &&
+          docker pull getsky/weather-alert-bot:${{ env.RELEASE_VERSION }} &&
           docker stop weather-alert-bta-telegrambot &&
           docker container rm weather-alert-bta-telegrambot &&
           docker run -d --name weather-alert-bta-telegrambot --restart=always
