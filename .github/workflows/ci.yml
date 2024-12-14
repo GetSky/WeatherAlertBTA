@@ -47,6 +47,7 @@ jobs:
 
   deploy:
     needs: [ build_and_push ]
+    if: github.ref == 'refs/heads/main'
     name: deploy image
     runs-on: ubuntu-latest
     steps:
