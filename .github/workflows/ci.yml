@@ -24,6 +24,8 @@ jobs:
   build_and_push:
     needs: [ test ]
     runs-on: ubuntu-latest
+    outputs:
+      RELEASE_VERSION: ${{ steps.release-version.outputs.RELEASE_VERSION }}
     steps:
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -53,8 +55,10 @@ jobs:
 
   deploy:
     needs: [ build_and_push ]
-    if: github.ref == 'refs/heads/main'
+#    if: github.ref == 'refs/heads/main'
     name: deploy image
+    env:
+      RELEASE_VERSION: ${{ needs.build_and_push.outputs.RELEASE_VERSION }}
     runs-on: ubuntu-latest
     steps:
       - name: install ssh keys
@@ -65,7 +69,7 @@ jobs:
 
       - name: connect and pull
         run: ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cd ${{ secrets.WORK_DIR }} &&
-          docker pull getsky/weather-alert-bot:${{ steps.release-version.outputs.RELEASE_VERSION }} &&
+          docker pull getsky/weather-alert-bot:$RELEASE_VERSION &&
           docker stop weather-alert-bta-telegrambot &&
           docker container rm weather-alert-bta-telegrambot &&
           docker run -d --name weather-alert-bta-telegrambot --restart=always
