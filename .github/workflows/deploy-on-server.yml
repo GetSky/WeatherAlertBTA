@@ -3,6 +3,10 @@ name: Deploy on server
 on:
   workflow_dispatch:
 
+env:
+  # Setting an environment variable with the value of a configuration variable
+  env_var: ${{ vars.ENV_CONTEXT_VAR }}
+
 jobs:
   deployment:
     runs-on: ubuntu-latest
