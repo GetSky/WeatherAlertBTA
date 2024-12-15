@@ -70,9 +70,8 @@ jobs:
       - name: connect and pull
         run: ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cd ${{ secrets.WORK_DIR }} &&
           docker pull getsky/weather-alert-bot:$RELEASE_VERSION &&
-          docker stop weather-alert-bta-telegrambot &&
-          docker container rm weather-alert-bta-telegrambot &&
-          docker run -d --name weather-alert-bta-telegrambot --restart=always
+          docker rm -f weather-alert-bta-telegrambot-$RELEASE_VERSION || true &&
+          docker run -d --name weather-alert-bta-telegrambot-$RELEASE_VERSION --restart=always
           -e BOT_TOKEN=${{ secrets.BOT_TOKEN }}
           -e TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}
           -e WEATHER_URL=${{ vars.WEATHER_URL }}
@@ -80,7 +79,7 @@ jobs:
           -e WIND_THRESHOLD=${{ vars.WIND_THRESHOLD }}
           -e POLL_INTERVAL=${{ vars.POLL_INTERVAL }}
           -e DELAY_TIME_IN_MINUTES=${{ vars.DELAY_TIME_IN_MINUTES }}
-          getsky/weather-alert-bot &&
+          getsky/weather-alert-bot:$RELEASE_VERSION &&
           exit"
 
       - name: cleanup
