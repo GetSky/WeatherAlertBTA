@@ -9,4 +9,6 @@ jobs:
     environment: production
     steps:
       - name: deploy
-        run: echo "Deploy run"
+        run: |
+          echo "Deploy run"
+          echo ${{ vars.TEST_ENV }}
