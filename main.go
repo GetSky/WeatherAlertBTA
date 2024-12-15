@@ -52,7 +52,7 @@ func init() {
 
 	url = os.Getenv("WEATHER_URL")
 	if url == "" {
-		url = "https://www.sao.ru/tb/tcs/meteo/data/meteo.dat"
+		url = "https://relay.sao.ru/tb/tcs/meteo/data/meteo.dat"
 	}
 
 	chartWeatherURL = os.Getenv("CHART_WEATHER_URL")
@@ -104,7 +104,7 @@ func init() {
 	if delayTimeInMinutesStr == "" {
 		DelayTime = 20 * time.Minute
 	} else {
-		DelayTime, err = time.ParseDuration(intervalStr)
+		DelayTime, err = time.ParseDuration(delayTimeInMinutesStr)
 		if err != nil {
 			fmt.Printf("Failed to parse DELAY_TIME_IN_MINUTES: %v\n", err)
 			os.Exit(1)
