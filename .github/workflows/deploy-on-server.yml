@@ -3,16 +3,11 @@ name: Deploy on server
 on:
   workflow_dispatch:
 
-env:
-  # Setting an environment variable with the value of a configuration variable
-  env_var: ${{ vars.ENV_CONTEXT_VAR }}
-
 jobs:
   deployment:
     runs-on: ubuntu-latest
-    environment: ${{ vars.ENVIRONMENT_STAGE }}
+    environment: production
     steps:
       - name: deploy
         run: |
-          echo "ENVIRONMENT_STAGE: ${{ vars.ENVIRONMENT_STAGE }}"
-          echo "Deploy run and say: ${{ vars.TEST_ENV }}"
+          echo "Image: ${{ vars.IMAGE_NAME }}:${{ vars.TAG }}"
