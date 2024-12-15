@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -27,23 +28,28 @@ Wind Speed: %.1f m/s
 Wind speed is now below the threshold.`
 
 var (
-	url                string
-	botToken           string
-	telegramChat       int64
-	windThreshold      float64
-	DelayTimeInMinutes time.Duration
-	pollInterval       time.Duration
-	chartWeatherURL    string
+	url             string
+	botToken        string
+	telegramChat    int64
+	windThreshold   float64
+	DelayTime       time.Duration
+	pollInterval    time.Duration
+	chartWeatherURL string
 )
 
+var client *http.Client
+
 var (
-	lastModified      string
-	windAlertActive   = false
-	lastMessageID     int
-	lastWindAlertTime time.Time
+	lastModified             string
+	lastModifiedChartWeather string
+	windAlertActive          bool
+	lastMessageID            int
+	lastWindAlertTime        time.Time
 )
 
 func init() {
+	client = &http.Client{}
+
 	url = os.Getenv("WEATHER_URL")
 	if url == "" {
 		url = "https://www.sao.ru/tb/tcs/meteo/data/meteo.dat"
@@ -96,9 +102,9 @@ func init() {
 
 	delayTimeInMinutesStr := os.Getenv("DELAY_TIME_IN_MINUTES")
 	if delayTimeInMinutesStr == "" {
-		DelayTimeInMinutes = 20 * time.Minute
+		DelayTime = 20 * time.Minute
 	} else {
-		DelayTimeInMinutes, err = time.ParseDuration(intervalStr)
+		DelayTime, err = time.ParseDuration(intervalStr)
 		if err != nil {
 			fmt.Printf("Failed to parse DELAY_TIME_IN_MINUTES: %v\n", err)
 			os.Exit(1)
@@ -119,39 +125,97 @@ func main() {
 	}
 }
 
-func checkWeather(bot *tgbotapi.BotAPI) {
-	// Checking for an updated file
-	client := &http.Client{}
+func GetLastUpdate(url string) (string, error) {
+	modifiedAt := ""
 	headReq, err := http.NewRequest("HEAD", url, nil)
 	if err != nil {
-		fmt.Printf("Failed to create HEAD request: %v\n", err)
-		return
+		return modifiedAt, fmt.Errorf("Failed to create HEAD request: %v\n", err)
 	}
 
 	headResp, err := client.Do(headReq)
 	if err != nil {
-		fmt.Printf("HEAD request failed: %v\n", err)
-		return
+		return modifiedAt, fmt.Errorf("HEAD request failed: %v\n", err)
 	}
 	defer headResp.Body.Close()
 
 	if headResp.StatusCode != http.StatusOK {
-		fmt.Printf("Unexpected HEAD response: %s\n", headResp.Status)
+		return modifiedAt, fmt.Errorf("Unexpected HEAD response: %s\n", headResp.Status)
+	}
+
+	modifiedAt = headResp.Header.Get("Last-Modified")
+	return modifiedAt, nil
+}
+
+func downloadChart() (string, error) {
+	pathFile := "chart.png"
+
+	modifiedAt, err := GetLastUpdate(chartWeatherURL)
+	if err != nil {
+		fmt.Printf("Failed to check last update: %v\n", err)
+	}
+
+	if modifiedAt == lastModifiedChartWeather {
+		return "", fmt.Errorf("\"Last-Modified\" header has not changed for the file")
+	}
+
+	resp, err := http.Get(chartWeatherURL)
+	if err != nil {
+		return "", fmt.Errorf("failed to download image: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("unexpected HTTP status: %s", resp.Status)
+	}
+
+	file, err := os.Create(pathFile)
+	if err != nil {
+		return "", fmt.Errorf("failed to create file: %v", err)
+	}
+	defer file.Close()
+
+	_, err = io.Copy(file, resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to save image: %v", err)
+	}
+
+	lastModifiedChartWeather = modifiedAt
+
+	return pathFile, nil
+}
+
+func checkWeather(bot *tgbotapi.BotAPI) {
+	// Checking for an updated file
+	modifiedAt, err := GetLastUpdate(url)
+	if err != nil {
+		fmt.Printf("Failed to check last update: %v\n", err)
 		return
 	}
 
-	currentModified := headResp.Header.Get("Last-Modified")
-	if currentModified == "" {
-		fmt.Println("No Last-Modified header found.")
-		return
+	if windAlertActive {
+		path, err := downloadChart()
+		if err != nil {
+			fmt.Printf("Failed to download chart: %v\n", err)
+		} else {
+			_, err := bot.Send(tgbotapi.EditMessageMediaConfig{
+				BaseEdit: tgbotapi.BaseEdit{
+					MessageID: lastMessageID,
+					ChatID:    telegramChat,
+				},
+				Media: tgbotapi.NewInputMediaPhoto(tgbotapi.FilePath(path)),
+			})
+			if err != nil {
+				fmt.Printf("Failed to send active alert image: %v\n", err)
+			}
+		}
 	}
 
-	if currentModified == lastModified {
+	if modifiedAt == lastModified {
 		fmt.Println("Data has not changed since last check.")
 		return
 	}
 
-	lastModified = currentModified
+	lastModified = modifiedAt
 
 	// Use Range header to fetch only the last 66 bytes (approximately one line)
 	req, err := http.NewRequest("GET", url, nil)
@@ -200,24 +264,28 @@ func checkWeather(bot *tgbotapi.BotAPI) {
 	if windSpeed >= windThreshold {
 		lastWindAlertTime = time.Now()
 		if !windAlertActive {
-			windAlertActive = true
 
-			alertMessage := fmt.Sprintf(alertTemplate, timestamp, temp, windSpeed)
-			message := tgbotapi.NewMessage(telegramChat, alertMessage)
+			message := tgbotapi.NewMessage(telegramChat, fmt.Sprintf(alertTemplate, timestamp, temp, windSpeed))
 			_, err := bot.Send(message)
 			if err != nil {
 				fmt.Printf("Failed to send message: %v\n", err)
 				return
 			}
 
-			photo := tgbotapi.NewPhoto(telegramChat, tgbotapi.FileURL(chartWeatherURL))
-			_, err = bot.Send(photo)
+			path, err := downloadChart()
 			if err != nil {
-				fmt.Printf("Failed to send image: %v\n", err)
+				fmt.Printf("Failed to download chart: %v\n", err)
 				return
 			}
 
-			lastMessageID = 0
+			photo := tgbotapi.NewPhoto(telegramChat, tgbotapi.FilePath(path))
+			msg, err := bot.Send(photo)
+			if err != nil {
+				fmt.Printf("Failed to send active alert image: %v\n", err)
+				return
+			}
+			lastMessageID = msg.MessageID
+			windAlertActive = true
 			fmt.Println("Wind alert sent successfully.")
 		} else {
 			fmt.Println("Wind alert already active. No message sent.")
@@ -225,28 +293,36 @@ func checkWeather(bot *tgbotapi.BotAPI) {
 	} else {
 		if windAlertActive {
 			duration := time.Since(lastWindAlertTime)
-			if duration > DelayTimeInMinutes*time.Minute {
-				windAlertActive = false
-
-				photo := tgbotapi.NewPhoto(telegramChat, tgbotapi.FileURL(chartWeatherURL))
-				_, err := bot.Send(photo)
+			if duration > DelayTime {
+				path, err := downloadChart()
 				if err != nil {
-					fmt.Printf("Failed to send image: %v\n", err)
+					fmt.Printf("Failed to download chart: %v\n", err)
 					return
+				} else {
+					_, err := bot.Send(tgbotapi.EditMessageMediaConfig{
+						BaseEdit: tgbotapi.BaseEdit{
+							MessageID: lastMessageID,
+							ChatID:    telegramChat,
+						},
+						Media: tgbotapi.NewInputMediaPhoto(tgbotapi.FilePath(path)),
+					})
+					if err != nil {
+						fmt.Printf("Failed to send active alert image: %v\n", err)
+					}
 				}
 
-				alertMessage := fmt.Sprintf(windTemplate, timestamp, temp, windSpeed)
-				message := tgbotapi.NewMessage(telegramChat, alertMessage)
+				message := tgbotapi.NewMessage(telegramChat, fmt.Sprintf(windTemplate, timestamp, temp, windSpeed))
 				msg, err := bot.Send(message)
 				if err != nil {
 					fmt.Printf("Failed to send message: %v\n", err)
 					return
 				}
 
+				windAlertActive = false
 				lastMessageID = msg.MessageID
 				fmt.Println("Wind speed below threshold message sent.")
 			} else {
-				fmt.Println("Wind speed below threshold but duration < 20 minutes. No alert reset.")
+				fmt.Println("The wind speed is below the threshold, but the time has not come to cancel the alert.")
 			}
 		} else {
 			if lastMessageID != 0 {
