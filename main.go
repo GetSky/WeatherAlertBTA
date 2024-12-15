@@ -265,16 +265,16 @@ func checkWeather(bot *tgbotapi.BotAPI) {
 		lastWindAlertTime = time.Now()
 		if !windAlertActive {
 
-			message := tgbotapi.NewMessage(telegramChat, fmt.Sprintf(alertTemplate, timestamp, temp, windSpeed))
-			_, err := bot.Send(message)
-			if err != nil {
-				fmt.Printf("Failed to send message: %v\n", err)
-				return
-			}
-
 			path, err := downloadChart()
 			if err != nil {
 				fmt.Printf("Failed to download chart: %v\n", err)
+				return
+			}
+
+			message := tgbotapi.NewMessage(telegramChat, fmt.Sprintf(alertTemplate, timestamp, temp, windSpeed))
+			_, err = bot.Send(message)
+			if err != nil {
+				fmt.Printf("Failed to send message: %v\n", err)
 				return
 			}
 
