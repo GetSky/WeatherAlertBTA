@@ -1,6 +1,9 @@
-name: Deploy on server
+name: Deployment on Develop
 
 on:
+  push:
+    branches-ignore:
+      - main
   workflow_dispatch:
 
 jobs:
