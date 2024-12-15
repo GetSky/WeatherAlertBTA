@@ -9,5 +9,5 @@ jobs:
     steps:
       - name: deploy
         run: |
-          echo "Deploy run"
+          echo "Deploy run and say:"
           echo ${{ vars.TEST_ENV }}
