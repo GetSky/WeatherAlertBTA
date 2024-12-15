@@ -53,6 +53,12 @@ jobs:
           push: true
           tags: getsky/weather-alert-bot:${{ steps.release-version.outputs.RELEASE_VERSION }}
 
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          push: true
+          tags: getsky/weather-alert-bot:dev
+
   deploy:
     needs: [ build_and_push ]
     if: github.ref == 'refs/heads/main'
