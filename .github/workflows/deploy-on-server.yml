@@ -6,6 +6,7 @@ on:
 jobs:
   deployment:
     runs-on: ubuntu-latest
+    environment: ${{ vars.ENVIRONMENT_STAGE }}
     steps:
       - name: deploy
         run: |
