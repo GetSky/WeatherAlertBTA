@@ -30,8 +30,8 @@ jobs:
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ vars.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          username: ${{ vars.DEPLOY_REGISTRY_USERNAME }}
+          password: ${{ secrets.DEPLOY_DOCKERHUB_TOKEN }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -57,6 +57,7 @@ jobs:
     needs: [ build_and_push ]
     if: github.ref == 'refs/heads/main'
     name: deploy image
+    environment: production
     env:
       RELEASE_VERSION: ${{ needs.build_and_push.outputs.RELEASE_VERSION }}
     runs-on: ubuntu-latest
@@ -64,21 +65,21 @@ jobs:
       - name: install ssh keys
         run: |
           install -m 600 -D /dev/null ~/.ssh/id_rsa
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.SSH_HOST }} > ~/.ssh/known_hosts
+          echo "${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.DEPLOY_SSH_HOST }} > ~/.ssh/known_hosts
 
       - name: connect and pull
-        run: ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cd ${{ secrets.WORK_DIR }} &&
+        run: ssh ${{ secrets.DEPLOY_SSH_USER }}@${{ secrets.DEPLOY_SSH_HOST }} "cd ${{ secrets.DEPLOY_WORK_DIR }} &&
           docker pull getsky/weather-alert-bot:$RELEASE_VERSION &&
           docker rm -f weather-alert-bta-telegrambot-$RELEASE_VERSION || true &&
           docker run -d --name weather-alert-bta-telegrambot-$RELEASE_VERSION --restart=always
-          -e BOT_TOKEN=${{ secrets.BOT_TOKEN }}
-          -e TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}
-          -e WEATHER_URL=${{ vars.WEATHER_URL }}
-          -e CHART_WEATHER_URL=${{ vars.CHART_WEATHER_URL }}
-          -e WIND_THRESHOLD=${{ vars.WIND_THRESHOLD }}
-          -e POLL_INTERVAL=${{ vars.POLL_INTERVAL }}
-          -e DELAY_TIME_IN_MINUTES=${{ vars.DELAY_TIME_IN_MINUTES }}
+          -e BOT_TOKEN=${{ secrets.APP_BOT_TOKEN }}
+          -e TELEGRAM_CHAT_ID=${{ secrets.APP_TELEGRAM_CHAT_ID }}
+          -e WEATHER_URL=${{ vars.APP_WEATHER_URL }}
+          -e CHART_WEATHER_URL=${{ vars.APP_CHART_WEATHER_URL }}
+          -e WIND_THRESHOLD=${{ vars.APP_WIND_THRESHOLD }}
+          -e POLL_INTERVAL=${{ vars.APP_POLL_INTERVAL }}
+          -e DELAY_TIME_IN_MINUTES=${{ vars.APP_DELAY_TIME_IN_MINUTES }}
           getsky/weather-alert-bot:$RELEASE_VERSION &&
           exit"
 
