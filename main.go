@@ -52,7 +52,7 @@ func init() {
 
 	url = os.Getenv("WEATHER_URL")
 	if url == "" {
-		url = "https://www.sao.ru/tb/tcs/meteo/data/meteo.dat"
+		url = "https://relay.sao.ru/tb/tcs/meteo/data/meteo.dat"
 	}
 
 	chartWeatherURL = os.Getenv("CHART_WEATHER_URL")
@@ -104,7 +104,7 @@ func init() {
 	if delayTimeInMinutesStr == "" {
 		DelayTime = 20 * time.Minute
 	} else {
-		DelayTime, err = time.ParseDuration(intervalStr)
+		DelayTime, err = time.ParseDuration(delayTimeInMinutesStr)
 		if err != nil {
 			fmt.Printf("Failed to parse DELAY_TIME_IN_MINUTES: %v\n", err)
 			os.Exit(1)
@@ -265,16 +265,16 @@ func checkWeather(bot *tgbotapi.BotAPI) {
 		lastWindAlertTime = time.Now()
 		if !windAlertActive {
 
-			message := tgbotapi.NewMessage(telegramChat, fmt.Sprintf(alertTemplate, timestamp, temp, windSpeed))
-			_, err := bot.Send(message)
-			if err != nil {
-				fmt.Printf("Failed to send message: %v\n", err)
-				return
-			}
-
 			path, err := downloadChart()
 			if err != nil {
 				fmt.Printf("Failed to download chart: %v\n", err)
+				return
+			}
+
+			message := tgbotapi.NewMessage(telegramChat, fmt.Sprintf(alertTemplate, timestamp, temp, windSpeed))
+			_, err = bot.Send(message)
+			if err != nil {
+				fmt.Printf("Failed to send message: %v\n", err)
 				return
 			}
 
@@ -297,7 +297,6 @@ func checkWeather(bot *tgbotapi.BotAPI) {
 				path, err := downloadChart()
 				if err != nil {
 					fmt.Printf("Failed to download chart: %v\n", err)
-					return
 				} else {
 					_, err := bot.Send(tgbotapi.EditMessageMediaConfig{
 						BaseEdit: tgbotapi.BaseEdit{
