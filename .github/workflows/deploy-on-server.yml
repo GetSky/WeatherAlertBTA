@@ -10,4 +10,4 @@ jobs:
     steps:
       - name: deploy
         run: |
-          echo "Image: ${{ vars.IMAGE_NAME }}:${{ vars.TAG }}"
+          echo "Image: ${{ vars.IMAGE_NAME }}:${{ vars.IMAGE_TAG }}"
