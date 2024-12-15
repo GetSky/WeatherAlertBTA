@@ -1,10 +1,12 @@
-  on:
-    workflow_dispatch:
+name: Deploy on server
 
-  jobs:
-    deployment:
-      runs-on: ubuntu-latest
-      environment: production
-      steps:
-        - name: deploy
-          run: echo "Deploy run"
+on:
+  workflow_dispatch:
+
+jobs:
+  deployment:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: deploy
+        run: echo "Deploy run"
