@@ -69,7 +69,7 @@ jobs:
       - name: connect and pull
         run: ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cd ${{ secrets.WORK_DIR }} &&
           docker pull getsky/weather-alert-bot:$RELEASE_VERSION &&
-          docker stop weather-alert-bta-telegrambot-$RELEASE_VERSION &&
+          docker rm -f weather-alert-bta-telegrambot-$RELEASE_VERSION || true &&
           docker run -d --name weather-alert-bta-telegrambot-$RELEASE_VERSION --restart=always
           -e BOT_TOKEN=${{ secrets.BOT_TOKEN }}
           -e TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}
