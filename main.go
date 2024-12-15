@@ -297,7 +297,6 @@ func checkWeather(bot *tgbotapi.BotAPI) {
 				path, err := downloadChart()
 				if err != nil {
 					fmt.Printf("Failed to download chart: %v\n", err)
-					return
 				} else {
 					_, err := bot.Send(tgbotapi.EditMessageMediaConfig{
 						BaseEdit: tgbotapi.BaseEdit{
