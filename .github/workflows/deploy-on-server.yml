@@ -10,5 +10,5 @@ jobs:
     steps:
       - name: deploy
         run: |
-          echo "Deploy run and say:"
-          echo ${{ vars.TEST_ENV }}
+          echo "ENVIRONMENT_STAGE: ${{ vars.ENVIRONMENT_STAGE }}"
+          echo "Deploy run and say: ${{ vars.TEST_ENV }}"
