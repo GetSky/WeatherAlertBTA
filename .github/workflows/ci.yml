@@ -2,7 +2,7 @@ name: Build & Deploy
 
 on:
   push:
-    branches: [ "main", "feat/ci_**",  "refactor/ci_**", "fix/ci_**" ]
+    branches: [ "main", "feat/**",  "refactor/**", "fix/**" ]
 
 jobs:
   test:
@@ -21,17 +21,17 @@ jobs:
       - name: Test
         run: go test -v ./...
 
-  build_and_push:
+  build-dev:
     needs: [ test ]
+    environment: develop
+    if: github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
-    outputs:
-      RELEASE_VERSION: ${{ steps.release-version.outputs.RELEASE_VERSION }}
     steps:
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ vars.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          username: ${{ vars.DEPLOY_REGISTRY_USERNAME }}
+          password: ${{ secrets.DEPLOY_DOCKERHUB_TOKEN }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -39,48 +39,32 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Set the release version
-        id: release-version
-        run: |
-          release_version=$(echo "${{ github.ref }}" | sed 's|refs/heads/||;s|/|_|g')
-          echo "Building release version $release_version"
-          echo "RELEASE_VERSION=$release_version" >> $GITHUB_OUTPUT
-        shell: bash
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          push: true
+          tags: ${{ vars.DEPLOY_REGISTRY_USERNAME }}/${{ vars.DEPLOY_IMAGE_NAME }}:${{ vars.DEPLOY_IMAGE_TAG }}
+
+  build-prod:
+    needs: [ test ]
+    environment: production
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DEPLOY_REGISTRY_USERNAME }}
+          password: ${{ secrets.DEPLOY_DOCKERHUB_TOKEN }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
           push: true
-          tags: getsky/weather-alert-bot:${{ steps.release-version.outputs.RELEASE_VERSION }}
-
-  deploy:
-    needs: [ build_and_push ]
-    if: github.ref == 'refs/heads/main'
-    name: deploy image
-    env:
-      RELEASE_VERSION: ${{ needs.build_and_push.outputs.RELEASE_VERSION }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: install ssh keys
-        run: |
-          install -m 600 -D /dev/null ~/.ssh/id_rsa
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.SSH_HOST }} > ~/.ssh/known_hosts
-
-      - name: connect and pull
-        run: ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cd ${{ secrets.WORK_DIR }} &&
-          docker pull getsky/weather-alert-bot:$RELEASE_VERSION &&
-          docker rm -f weather-alert-bta-telegrambot-$RELEASE_VERSION || true &&
-          docker run -d --name weather-alert-bta-telegrambot-$RELEASE_VERSION --restart=always
-          -e BOT_TOKEN=${{ secrets.BOT_TOKEN }}
-          -e TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}
-          -e WEATHER_URL=${{ vars.WEATHER_URL }}
-          -e CHART_WEATHER_URL=${{ vars.CHART_WEATHER_URL }}
-          -e WIND_THRESHOLD=${{ vars.WIND_THRESHOLD }}
-          -e POLL_INTERVAL=${{ vars.POLL_INTERVAL }}
-          -e DELAY_TIME_IN_MINUTES=${{ vars.DELAY_TIME_IN_MINUTES }}
-          getsky/weather-alert-bot:$RELEASE_VERSION &&
-          exit"
-
-      - name: cleanup
-        run: rm -rf ~/.ssh
+          tags: ${{ vars.DEPLOY_REGISTRY_USERNAME }}/${{ vars.DEPLOY_IMAGE_NAME }}:${{ vars.DEPLOY_IMAGE_TAG }}
