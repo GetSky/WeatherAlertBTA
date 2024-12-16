@@ -36,23 +36,15 @@ jobs:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Set the release version
-        id: release-version
-        run: |
-          release_version=$(echo "${{ github.ref }}" | sed 's|refs/heads/||;s|/|_|g')
-          echo "Building release version $release_version"
-          echo "RELEASE_VERSION=$release_version" >> $GITHUB_OUTPUT
-        shell: bash
-
   build-dev:
     needs: [ setup ]
     environment: develop
     if: github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
@@ -65,6 +57,9 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
