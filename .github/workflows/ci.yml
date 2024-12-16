@@ -21,11 +21,11 @@ jobs:
       - name: Test
         run: go test -v ./...
 
-  setup:
+  build-dev:
     needs: [ test ]
+    environment: develop
+    if: github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
-    outputs:
-      RELEASE_VERSION: ${{ steps.release-version.outputs.RELEASE_VERSION }}
     steps:
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -36,12 +36,6 @@ jobs:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
-  build-dev:
-    needs: [ setup ]
-    environment: develop
-    if: github.ref != 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -52,11 +46,20 @@ jobs:
           tags: ${{ vars.DEPLOY_REGISTRY_USERNAME }}/${{ vars.DEPLOY_IMAGE_NAME }}:${{ vars.DEPLOY_IMAGE_TAG }}
 
   build-prod:
-    needs: [ setup ]
+    needs: [ test ]
     environment: production
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DEPLOY_REGISTRY_USERNAME }}
+          password: ${{ secrets.DEPLOY_DOCKERHUB_TOKEN }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
