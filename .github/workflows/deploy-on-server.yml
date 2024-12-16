@@ -6,7 +6,7 @@ on:
 jobs:
   deployment:
     runs-on: ubuntu-latest
-    environment: ${{ github.ref_name == 'main' && 'production' || 'dev' }}
+    environment: ${{ github.ref_name == 'main' && 'production' || 'develop' }}
     steps:
       - name: install ssh keys
         run: |
