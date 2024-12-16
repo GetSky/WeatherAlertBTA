@@ -21,7 +21,7 @@ jobs:
       - name: Test
         run: go test -v ./...
 
-  build_and_push:
+  setup:
     needs: [ test ]
     runs-on: ubuntu-latest
     outputs:
@@ -47,47 +47,26 @@ jobs:
           echo "RELEASE_VERSION=$release_version" >> $GITHUB_OUTPUT
         shell: bash
 
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          push: true
-          tags: getsky/weather-alert-bot:${{ steps.release-version.outputs.RELEASE_VERSION }}
-
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          push: true
-          tags: getsky/weather-alert-bot:dev
-
-  deploy:
-    needs: [ build_and_push ]
-    if: github.ref == 'refs/heads/main'
-    name: deploy image
-    environment: production
-    env:
-      RELEASE_VERSION: ${{ needs.build_and_push.outputs.RELEASE_VERSION }}
+  build-dev:
+    needs: [ setup ]
+    environment: develop
+    if: github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - name: install ssh keys
-        run: |
-          install -m 600 -D /dev/null ~/.ssh/id_rsa
-          echo "${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.DEPLOY_SSH_HOST }} > ~/.ssh/known_hosts
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          push: true
+          tags: ${{ vars.DEPLOY_REGISTRY_USERNAME }}/${{ vars.DEPLOY_IMAGE_NAME }}:${{ vars.DEPLOY_IMAGE_TAG }}
 
-      - name: connect and pull
-        run: ssh ${{ secrets.DEPLOY_SSH_USER }}@${{ secrets.DEPLOY_SSH_HOST }} "cd ${{ secrets.DEPLOY_WORK_DIR }} &&
-          docker pull getsky/weather-alert-bot:$RELEASE_VERSION &&
-          docker rm -f weather-alert-bta-telegrambot-$RELEASE_VERSION || true &&
-          docker run -d --name weather-alert-bta-telegrambot-$RELEASE_VERSION --restart=always
-          -e BOT_TOKEN=${{ secrets.APP_BOT_TOKEN }}
-          -e TELEGRAM_CHAT_ID=${{ secrets.APP_TELEGRAM_CHAT_ID }}
-          -e WEATHER_URL=${{ vars.APP_WEATHER_URL }}
-          -e CHART_WEATHER_URL=${{ vars.APP_CHART_WEATHER_URL }}
-          -e WIND_THRESHOLD=${{ vars.APP_WIND_THRESHOLD }}
-          -e POLL_INTERVAL=${{ vars.APP_POLL_INTERVAL }}
-          -e DELAY_TIME_IN_MINUTES=${{ vars.APP_DELAY_TIME_IN_MINUTES }}
-          getsky/weather-alert-bot:$RELEASE_VERSION &&
-          exit"
-
-      - name: cleanup
-        run: rm -rf ~/.ssh
+  build-prod:
+    needs: [ setup ]
+    environment: production
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          push: true
+          tags: ${{ vars.DEPLOY_REGISTRY_USERNAME }}/${{ vars.DEPLOY_IMAGE_NAME }}:${{ vars.DEPLOY_IMAGE_TAG }}
