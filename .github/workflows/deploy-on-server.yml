@@ -1,4 +1,4 @@
-name: Deployment on Develop
+name: Manual deployment
 
 on:
   workflow_dispatch:
@@ -6,7 +6,7 @@ on:
 jobs:
   deployment:
     runs-on: ubuntu-latest
-    environment: develop
+    environment: ${{ github.ref_name == 'main' && 'production' || 'dev' }}
     steps:
       - name: install ssh keys
         run: |
