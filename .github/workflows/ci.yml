@@ -2,7 +2,7 @@ name: Build & Deploy
 
 on:
   push:
-    branches: [ "main", "feat/ci_**",  "refactor/ci_**", "fix/ci_**" ]
+    branches: [ "main", "feat/**",  "refactor/**", "fix/**" ]
 
 jobs:
   test:
