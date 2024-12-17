@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -12,6 +11,15 @@ import (
 
 	"github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
+
+type ChartService interface {
+	GetUpdatedChart() (Chart, error)
+}
+
+type Chart struct {
+	Path     string
+	CreateAt time.Time
+}
 
 var alertTemplate = `🚨 Wind Alert:
 
@@ -38,13 +46,13 @@ var (
 )
 
 var client *http.Client
+var chartSrv ChartService
 
 var (
-	lastModified             string
-	lastModifiedChartWeather string
-	windAlertActive          bool
-	lastMessageID            int
-	lastWindAlertTime        time.Time
+	lastModified      string
+	windAlertActive   bool
+	lastMessageID     int
+	lastWindAlertTime time.Time
 )
 
 func init() {
@@ -57,7 +65,7 @@ func init() {
 
 	chartWeatherURL = os.Getenv("CHART_WEATHER_URL")
 	if chartWeatherURL == "" {
-		chartWeatherURL = "https://relay.sao.ru/tb/tcs/meteo/data/meteo_today.png"
+		chartWeatherURL = "https://www.sao.ru/tb/tcs/meteo/meteo_today.cgi"
 	}
 
 	botToken = os.Getenv("BOT_TOKEN")
@@ -113,6 +121,7 @@ func init() {
 }
 
 func main() {
+	chartSrv = NewChartService(chartWeatherURL)
 	bot, err := tgbotapi.NewBotAPI(botToken)
 	if err != nil {
 		fmt.Printf("Failed to initialize bot: %v\n", err)
@@ -146,44 +155,6 @@ func GetLastUpdate(url string) (string, error) {
 	return modifiedAt, nil
 }
 
-func downloadChart() (string, error) {
-	pathFile := "chart.png"
-
-	modifiedAt, err := GetLastUpdate(chartWeatherURL)
-	if err != nil {
-		fmt.Printf("Failed to check last update: %v\n", err)
-	}
-
-	if modifiedAt == lastModifiedChartWeather {
-		return "", fmt.Errorf("\"Last-Modified\" header has not changed for the file")
-	}
-
-	resp, err := http.Get(chartWeatherURL)
-	if err != nil {
-		return "", fmt.Errorf("failed to download image: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("unexpected HTTP status: %s", resp.Status)
-	}
-
-	file, err := os.Create(pathFile)
-	if err != nil {
-		return "", fmt.Errorf("failed to create file: %v", err)
-	}
-	defer file.Close()
-
-	_, err = io.Copy(file, resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("failed to save image: %v", err)
-	}
-
-	lastModifiedChartWeather = modifiedAt
-
-	return pathFile, nil
-}
-
 func checkWeather(bot *tgbotapi.BotAPI) {
 	// Checking for an updated file
 	modifiedAt, err := GetLastUpdate(url)
@@ -193,16 +164,16 @@ func checkWeather(bot *tgbotapi.BotAPI) {
 	}
 
 	if windAlertActive {
-		path, err := downloadChart()
+		chart, err := chartSrv.GetUpdatedChart()
 		if err != nil {
-			fmt.Printf("Failed to download chart: %v\n", err)
+			fmt.Printf("ChartService → %v\n", err)
 		} else {
 			_, err := bot.Send(tgbotapi.EditMessageMediaConfig{
 				BaseEdit: tgbotapi.BaseEdit{
 					MessageID: lastMessageID,
 					ChatID:    telegramChat,
 				},
-				Media: tgbotapi.NewInputMediaPhoto(tgbotapi.FilePath(path)),
+				Media: tgbotapi.NewInputMediaPhoto(tgbotapi.FilePath(chart.Path)),
 			})
 			if err != nil {
 				fmt.Printf("Failed to send active alert image: %v\n", err)
@@ -265,9 +236,9 @@ func checkWeather(bot *tgbotapi.BotAPI) {
 		lastWindAlertTime = time.Now()
 		if !windAlertActive {
 
-			path, err := downloadChart()
+			chart, err := chartSrv.GetUpdatedChart()
 			if err != nil {
-				fmt.Printf("Failed to download chart: %v\n", err)
+				fmt.Printf("ChartService → %v\n", err)
 				return
 			}
 
@@ -278,7 +249,7 @@ func checkWeather(bot *tgbotapi.BotAPI) {
 				return
 			}
 
-			photo := tgbotapi.NewPhoto(telegramChat, tgbotapi.FilePath(path))
+			photo := tgbotapi.NewPhoto(telegramChat, tgbotapi.FilePath(chart.Path))
 			msg, err := bot.Send(photo)
 			if err != nil {
 				fmt.Printf("Failed to send active alert image: %v\n", err)
@@ -294,16 +265,16 @@ func checkWeather(bot *tgbotapi.BotAPI) {
 		if windAlertActive {
 			duration := time.Since(lastWindAlertTime)
 			if duration > DelayTime {
-				path, err := downloadChart()
+				chart, err := chartSrv.GetUpdatedChart()
 				if err != nil {
-					fmt.Printf("Failed to download chart: %v\n", err)
+					fmt.Printf("CharrtService → %v\n", err)
 				} else {
 					_, err := bot.Send(tgbotapi.EditMessageMediaConfig{
 						BaseEdit: tgbotapi.BaseEdit{
 							MessageID: lastMessageID,
 							ChatID:    telegramChat,
 						},
-						Media: tgbotapi.NewInputMediaPhoto(tgbotapi.FilePath(path)),
+						Media: tgbotapi.NewInputMediaPhoto(tgbotapi.FilePath(chart.Path)),
 					})
 					if err != nil {
 						fmt.Printf("Failed to send active alert image: %v\n", err)
