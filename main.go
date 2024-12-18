@@ -285,7 +285,7 @@ func checkWeather() {
 				fmt.Println("The wind speed is below the threshold, but the time has not come to cancel the alert.")
 			}
 		} else {
-			err = notifySrv.SendNewMessage(fmt.Sprintf(windTemplate, timestamp, temp, windSpeed))
+			err = notifySrv.UpdateLastMessage(fmt.Sprintf(windTemplate, timestamp, temp, windSpeed))
 			if err != nil {
 				fmt.Printf("Main → %v\n", err)
 				return

@@ -27,7 +27,7 @@ func NewTelegramNotifyService(bot *tgbotapi.BotAPI, receiverKey string) NotifySe
 	}
 }
 
-func (c telegramNotifyService) SendNewMessage(text string) error {
+func (c *telegramNotifyService) SendNewMessage(text string) error {
 	message := tgbotapi.NewMessage(c.telegramChat, text)
 	msg, err := c.bot.Send(message)
 	if err != nil {
@@ -38,9 +38,9 @@ func (c telegramNotifyService) SendNewMessage(text string) error {
 	return nil
 }
 
-func (c telegramNotifyService) UpdateLastMessage(text string) error {
+func (c *telegramNotifyService) UpdateLastMessage(text string) error {
 	if c.lastMessageID == 0 {
-		return nil
+		return c.SendNewMessage(text)
 	}
 
 	editedMessage := tgbotapi.NewEditMessageText(
@@ -56,7 +56,7 @@ func (c telegramNotifyService) UpdateLastMessage(text string) error {
 	return nil
 }
 
-func (c telegramNotifyService) SendNewChart(chart Chart, text string) error {
+func (c *telegramNotifyService) SendNewChart(chart Chart, text string) error {
 	cnf := tgbotapi.NewPhoto(c.telegramChat, tgbotapi.FilePath(chart.Path))
 	if text != "" {
 		cnf.Caption = text
@@ -71,7 +71,7 @@ func (c telegramNotifyService) SendNewChart(chart Chart, text string) error {
 	return nil
 }
 
-func (c telegramNotifyService) UpdateLastChart(chart Chart, text string) error {
+func (c *telegramNotifyService) UpdateLastChart(chart Chart, text string) error {
 	if c.lastChartID == 0 {
 		return nil
 	}
