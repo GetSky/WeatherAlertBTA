@@ -76,7 +76,7 @@ func (c *telegramNotifyService) UpdateLastChart(chart Chart, text string) error 
 		return nil
 	}
 
-	cnf := tgbotapi.NewPhoto(c.telegramChat, tgbotapi.FilePath(chart.Path))
+	cnf := tgbotapi.NewInputMediaPhoto(tgbotapi.FilePath(chart.Path))
 	if text != "" {
 		cnf.Caption = text
 	}
