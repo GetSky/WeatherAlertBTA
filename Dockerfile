@@ -7,7 +7,7 @@ RUN go mod download
 
 COPY . .
 
-RUN go build -o /telegram_bot
+RUN CGO_ENABLED=0 go build t go build -a -o /telegram_bot ./cmd/application
 
 FROM debian:bullseye-slim
 
