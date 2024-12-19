@@ -1,4 +1,4 @@
-module WeatherAlertBTA
+module github.com/GetSky/WeatherAlertBTA
 
 go 1.20
 
