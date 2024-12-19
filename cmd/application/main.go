@@ -3,31 +3,15 @@ package main
 import (
 	"bufio"
 	"fmt"
+	. "github.com/GetSky/WeatherAlertBTA/internal/application"
+	. "github.com/GetSky/WeatherAlertBTA/internal/infrastructure"
+	"github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
-
-type NotifyService interface {
-	SendNewMessage(text string) error
-	UpdateLastMessage(text string) error
-
-	SendNewChart(chart Chart, text string) error
-	UpdateLastChart(chart Chart, text string) error
-}
-
-type ChartService interface {
-	GetUpdatedChart() (Chart, error)
-}
-
-type Chart struct {
-	Path     string
-	CreateAt time.Time
-}
 
 var alertTemplate = `🚨 Wind Alert:
 

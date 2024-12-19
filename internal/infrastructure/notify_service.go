@@ -1,7 +1,8 @@
-package main
+package infrastructure
 
 import (
 	"fmt"
+	. "github.com/GetSky/WeatherAlertBTA/internal/application"
 	"github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"os"
 	"strconv"

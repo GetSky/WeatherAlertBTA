@@ -1,7 +1,8 @@
-package main
+package infrastructure
 
 import (
 	"fmt"
+	. "github.com/GetSky/WeatherAlertBTA/internal/application"
 	"io"
 	"net/http"
 	"os"
