@@ -12,6 +12,14 @@ import (
 	"github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
+type NotifyService interface {
+	SendNewMessage(text string) error
+	UpdateLastMessage(text string) error
+
+	SendNewChart(chart Chart, text string) error
+	UpdateLastChart(chart Chart, text string) error
+}
+
 type ChartService interface {
 	GetUpdatedChart() (Chart, error)
 }
@@ -38,7 +46,7 @@ Wind speed is now below the threshold.`
 var (
 	url             string
 	botToken        string
-	telegramChat    int64
+	telegramChat    string
 	windThreshold   float64
 	DelayTime       time.Duration
 	pollInterval    time.Duration
@@ -47,11 +55,11 @@ var (
 
 var client *http.Client
 var chartSrv ChartService
+var notifySrv NotifyService
 
 var (
 	lastModified      string
 	windAlertActive   bool
-	lastMessageID     int
 	lastWindAlertTime time.Time
 )
 
@@ -74,17 +82,13 @@ func init() {
 		os.Exit(1)
 	}
 
-	chatIDStr := os.Getenv("TELEGRAM_CHAT_ID")
-	if chatIDStr == "" {
+	telegramChat = os.Getenv("TELEGRAM_CHAT_ID")
+	if telegramChat == "" {
 		fmt.Println("TELEGRAM_CHAT_ID is not set")
 		os.Exit(1)
 	}
+
 	var err error
-	telegramChat, err = strconv.ParseInt(chatIDStr, 10, 64)
-	if err != nil {
-		fmt.Printf("Failed to parse TELEGRAM_CHAT_ID: %v\n", err)
-		os.Exit(1)
-	}
 
 	thresholdStr := os.Getenv("WIND_THRESHOLD")
 	if thresholdStr == "" {
@@ -121,15 +125,17 @@ func init() {
 }
 
 func main() {
-	chartSrv = NewChartService(chartWeatherURL)
 	bot, err := tgbotapi.NewBotAPI(botToken)
 	if err != nil {
 		fmt.Printf("Failed to initialize bot: %v\n", err)
 		os.Exit(1)
 	}
 
+	chartSrv = NewChartService(chartWeatherURL)
+	notifySrv = NewTelegramNotifyService(bot, telegramChat)
+
 	for {
-		checkWeather(bot)
+		checkWeather()
 		time.Sleep(pollInterval)
 	}
 }
@@ -155,7 +161,7 @@ func GetLastUpdate(url string) (string, error) {
 	return modifiedAt, nil
 }
 
-func checkWeather(bot *tgbotapi.BotAPI) {
+func checkWeather() {
 	// Checking for an updated file
 	modifiedAt, err := GetLastUpdate(url)
 	if err != nil {
@@ -168,15 +174,9 @@ func checkWeather(bot *tgbotapi.BotAPI) {
 		if err != nil {
 			fmt.Printf("ChartService → %v\n", err)
 		} else {
-			_, err := bot.Send(tgbotapi.EditMessageMediaConfig{
-				BaseEdit: tgbotapi.BaseEdit{
-					MessageID: lastMessageID,
-					ChatID:    telegramChat,
-				},
-				Media: tgbotapi.NewInputMediaPhoto(tgbotapi.FilePath(chart.Path)),
-			})
+			err := notifySrv.UpdateLastChart(chart, "")
 			if err != nil {
-				fmt.Printf("Failed to send active alert image: %v\n", err)
+				fmt.Printf("Main → %v\n", err)
 			}
 		}
 	}
@@ -242,20 +242,18 @@ func checkWeather(bot *tgbotapi.BotAPI) {
 				return
 			}
 
-			message := tgbotapi.NewMessage(telegramChat, fmt.Sprintf(alertTemplate, timestamp, temp, windSpeed))
-			_, err = bot.Send(message)
+			err = notifySrv.SendNewMessage(fmt.Sprintf(alertTemplate, timestamp, temp, windSpeed))
 			if err != nil {
-				fmt.Printf("Failed to send message: %v\n", err)
+				fmt.Printf("Main → %v\n", err)
 				return
 			}
 
-			photo := tgbotapi.NewPhoto(telegramChat, tgbotapi.FilePath(chart.Path))
-			msg, err := bot.Send(photo)
+			err = notifySrv.SendNewChart(chart, "")
 			if err != nil {
-				fmt.Printf("Failed to send active alert image: %v\n", err)
+				fmt.Printf("Main → %v\n", err)
 				return
 			}
-			lastMessageID = msg.MessageID
+
 			windAlertActive = true
 			fmt.Println("Wind alert sent successfully.")
 		} else {
@@ -269,46 +267,28 @@ func checkWeather(bot *tgbotapi.BotAPI) {
 				if err != nil {
 					fmt.Printf("CharrtService → %v\n", err)
 				} else {
-					_, err := bot.Send(tgbotapi.EditMessageMediaConfig{
-						BaseEdit: tgbotapi.BaseEdit{
-							MessageID: lastMessageID,
-							ChatID:    telegramChat,
-						},
-						Media: tgbotapi.NewInputMediaPhoto(tgbotapi.FilePath(chart.Path)),
-					})
+					err := notifySrv.UpdateLastChart(chart, "")
 					if err != nil {
-						fmt.Printf("Failed to send active alert image: %v\n", err)
+						fmt.Printf("Main → %v\n", err)
 					}
 				}
 
-				message := tgbotapi.NewMessage(telegramChat, fmt.Sprintf(windTemplate, timestamp, temp, windSpeed))
-				msg, err := bot.Send(message)
+				err = notifySrv.SendNewMessage(fmt.Sprintf(windTemplate, timestamp, temp, windSpeed))
 				if err != nil {
-					fmt.Printf("Failed to send message: %v\n", err)
+					fmt.Printf("Main → %v\n", err)
 					return
 				}
 
 				windAlertActive = false
-				lastMessageID = msg.MessageID
 				fmt.Println("Wind speed below threshold message sent.")
 			} else {
 				fmt.Println("The wind speed is below the threshold, but the time has not come to cancel the alert.")
 			}
 		} else {
-			if lastMessageID != 0 {
-				editedMessage := tgbotapi.NewEditMessageText(
-					telegramChat,
-					lastMessageID,
-					fmt.Sprintf(windTemplate, timestamp, temp, windSpeed),
-				)
-				_, err = bot.Send(editedMessage)
-				if err != nil {
-					fmt.Printf("Failed to edit message: %v\n", err)
-					return
-				}
-				fmt.Println("Updated wind information.")
-			} else {
-				fmt.Println("No previous message to update.")
+			err = notifySrv.UpdateLastMessage(fmt.Sprintf(windTemplate, timestamp, temp, windSpeed))
+			if err != nil {
+				fmt.Printf("Main → %v\n", err)
+				return
 			}
 		}
 	}
