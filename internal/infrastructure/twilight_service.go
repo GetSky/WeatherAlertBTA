@@ -10,14 +10,14 @@ var (
 	lat, long = 43.649329, 41.426829 // BTA coordinates
 )
 
-type nauticalTwilightService struct {
+type twilightService struct {
 }
 
-func NewNauticalTwilightService() application.TwilightService {
-	return &nauticalTwilightService{}
+func NewTwilightService() application.TwilightService {
+	return &twilightService{}
 }
 
-func (n *nauticalTwilightService) CheckNauticalTwilight() (bool, error) {
+func (n *twilightService) CheckNauticalTwilight() (bool, error) {
 	now := time.Now()
 	ref := now.Add(-12 * time.Hour) // Using a reference date to correct premature date translation when reaching 00:00
 	start, _ := n.calc(ref, suncalc.NauticalDusk)
@@ -26,7 +26,7 @@ func (n *nauticalTwilightService) CheckNauticalTwilight() (bool, error) {
 	return now.After(start) && now.Before(end), nil
 }
 
-func (n *nauticalTwilightService) calc(date time.Time, name suncalc.DayTimeName) (time.Time, error) {
+func (n *twilightService) calc(date time.Time, name suncalc.DayTimeName) (time.Time, error) {
 	times := suncalc.GetTimes(date, lat, long)
 	date = time.Date(
 		date.Year(),

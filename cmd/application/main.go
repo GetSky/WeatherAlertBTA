@@ -117,7 +117,7 @@ func main() {
 	}
 	chartSrv = NewChartService(chartWeatherURL)
 	notifySrv = NewTelegramNotifyService(bot, telegramChat)
-	twilightSrv = NewNauticalTwilightService()
+	twilightSrv = NewTwilightService()
 
 	for {
 		isTwilight, _ := twilightSrv.CheckNauticalTwilight()
