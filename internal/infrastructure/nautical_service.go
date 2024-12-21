@@ -19,8 +19,9 @@ func NewNauticalTwilightService() application.TwilightService {
 
 func (n *nauticalTwilightService) CheckNauticalTwilight() (bool, error) {
 	now := time.Now()
-	start, _ := n.calc(now, suncalc.NauticalDusk)
-	end, _ := n.calc(now.AddDate(0, 0, 1), suncalc.NauticalDawn)
+	ref := now.Add(-12 * time.Hour) // Using a reference date to correct premature date translation when reaching 00:00
+	start, _ := n.calc(ref, suncalc.NauticalDusk)
+	end, _ := n.calc(ref.AddDate(0, 0, 1), suncalc.NauticalDawn)
 
 	return now.After(start) && now.Before(end), nil
 }
