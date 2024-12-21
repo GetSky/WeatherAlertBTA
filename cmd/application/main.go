@@ -40,6 +40,7 @@ var (
 var client *http.Client
 var chartSrv ChartService
 var notifySrv NotifyService
+var twilightSrv TwilightService
 
 var (
 	lastModified      string
@@ -114,12 +115,15 @@ func main() {
 		fmt.Printf("Failed to initialize bot: %v\n", err)
 		os.Exit(1)
 	}
-
 	chartSrv = NewChartService(chartWeatherURL)
 	notifySrv = NewTelegramNotifyService(bot, telegramChat)
+	twilightSrv = NewNauticalTwilightService()
 
 	for {
-		checkWeather()
+		isTwilight, _ := twilightSrv.CheckNauticalTwilight()
+		if isTwilight {
+			checkWeather()
+		}
 		time.Sleep(pollInterval)
 	}
 }
