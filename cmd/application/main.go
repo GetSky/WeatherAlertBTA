@@ -1,3 +1,6 @@
+// Copyright 2024 Alexander Getmansky <alex@getsky.tech>
+// Licensed under the Apache License, Version 2.0
+
 package main
 
 import (
