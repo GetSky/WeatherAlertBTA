@@ -13,8 +13,8 @@ type NotifyService interface {
 	UpdateLastChart(chart Chart, text string) error
 }
 
-type TwilightService interface {
-	CheckNauticalTwilight() (bool, error)
+type ScheduleService interface {
+	IsWorkNow() (bool, error)
 }
 
 type ChartService interface {

@@ -17,13 +17,13 @@ type twilightService struct {
 	beforeDusk time.Duration
 }
 
-func NewTwilightService(beforeDusk time.Duration) application.TwilightService {
+func NewTwilightService(beforeDusk time.Duration) application.ScheduleService {
 	return &twilightService{
 		beforeDusk: beforeDusk,
 	}
 }
 
-func (n *twilightService) CheckNauticalTwilight() (bool, error) {
+func (n *twilightService) IsWorkNow() (bool, error) {
 	now := time.Now()
 	ref := now.Add(-12 * time.Hour) // Using a reference date to correct premature date translation when reaching 00:00
 	start, _ := n.calc(ref, suncalc.NauticalDusk)
