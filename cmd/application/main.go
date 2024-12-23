@@ -44,7 +44,7 @@ var (
 var client *http.Client
 var chartSrv ChartService
 var notifySrv NotifyService
-var twilightSrv TwilightService
+var twilightSrv ScheduleService
 
 var (
 	lastModified      string
@@ -135,7 +135,7 @@ func main() {
 	twilightSrv = NewTwilightService(timeReserveBeforeDusk)
 
 	for {
-		isTwilight, _ := twilightSrv.CheckNauticalTwilight()
+		isTwilight, _ := twilightSrv.IsWorkNow()
 		if isTwilight {
 			checkWeather()
 		}
