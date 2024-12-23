@@ -26,5 +26,6 @@ jobs:
           -e WIND_THRESHOLD=${{ vars.APP_WIND_THRESHOLD }}
           -e POLL_INTERVAL=${{ vars.APP_POLL_INTERVAL }}
           -e DELAY_TIME_IN_MINUTES=${{ vars.APP_DELAY_TIME_IN_MINUTES }}
+          -e RESERVE_TIME_BEFORE_DUSK_IN_MINUTES=${{ vars.APP_RESERVE_TIME_BEFORE_DUSK_IN_MINUTES }}
           ${{ vars.DEPLOY_REGISTRY_USERNAME }}/${{ vars.DEPLOY_IMAGE_NAME }}:${{ vars.DEPLOY_IMAGE_TAG }} &&
           exit"

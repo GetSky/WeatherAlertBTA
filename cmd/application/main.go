@@ -31,13 +31,14 @@ Wind Speed: %.1f m/s
 Wind speed is now below the threshold.`
 
 var (
-	url             string
-	botToken        string
-	telegramChat    string
-	windThreshold   float64
-	DelayTime       time.Duration
-	pollInterval    time.Duration
-	chartWeatherURL string
+	url                   string
+	botToken              string
+	telegramChat          string
+	windThreshold         float64
+	DelayTime             time.Duration
+	pollInterval          time.Duration
+	chartWeatherURL       string
+	timeReserveBeforeDusk time.Duration
 )
 
 var client *http.Client
@@ -110,6 +111,17 @@ func init() {
 			os.Exit(1)
 		}
 	}
+
+	timeReserveBeforeDuskStr := os.Getenv("RESERVE_TIME_BEFORE_DUSK_IN_MINUTES")
+	if timeReserveBeforeDuskStr == "" {
+		timeReserveBeforeDusk = 120 * time.Minute
+	} else {
+		timeReserveBeforeDusk, err = time.ParseDuration(timeReserveBeforeDuskStr)
+		if err != nil {
+			fmt.Printf("Failed to parse RESERVE_TIME_BEFORE_DUSK_IN_MINUTES: %v\n", err)
+			os.Exit(1)
+		}
+	}
 }
 
 func main() {
@@ -120,7 +132,7 @@ func main() {
 	}
 	chartSrv = NewChartService(chartWeatherURL)
 	notifySrv = NewTelegramNotifyService(bot, telegramChat)
-	twilightSrv = NewTwilightService()
+	twilightSrv = NewTwilightService(timeReserveBeforeDusk)
 
 	for {
 		isTwilight, _ := twilightSrv.CheckNauticalTwilight()

@@ -14,16 +14,20 @@ var (
 )
 
 type twilightService struct {
+	beforeDusk time.Duration
 }
 
-func NewTwilightService() application.TwilightService {
-	return &twilightService{}
+func NewTwilightService(beforeDusk time.Duration) application.TwilightService {
+	return &twilightService{
+		beforeDusk: beforeDusk,
+	}
 }
 
 func (n *twilightService) CheckNauticalTwilight() (bool, error) {
 	now := time.Now()
 	ref := now.Add(-12 * time.Hour) // Using a reference date to correct premature date translation when reaching 00:00
 	start, _ := n.calc(ref, suncalc.NauticalDusk)
+	start = start.Add(-n.beforeDusk)
 	end, _ := n.calc(ref.AddDate(0, 0, 1), suncalc.NauticalDawn)
 
 	return now.After(start) && now.Before(end), nil
