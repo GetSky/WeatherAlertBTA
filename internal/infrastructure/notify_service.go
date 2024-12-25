@@ -16,6 +16,7 @@ type telegramNotifyService struct {
 	telegramChat  int64
 	lastChartID   int
 	lastMessageID int
+	lastMsgText   string
 }
 
 func NewTelegramNotifyService(bot *tgbotapi.BotAPI, receiverKey string) NotifyService {
@@ -33,6 +34,8 @@ func NewTelegramNotifyService(bot *tgbotapi.BotAPI, receiverKey string) NotifySe
 
 func (c *telegramNotifyService) SendNewMessage(text string) error {
 	message := tgbotapi.NewMessage(c.telegramChat, text)
+	message.ParseMode = tgbotapi.ModeMarkdown
+
 	msg, err := c.bot.Send(message)
 	if err != nil {
 		return fmt.Errorf("TelegramNotifyService → %v\n", err)
@@ -52,6 +55,8 @@ func (c *telegramNotifyService) UpdateLastMessage(text string) error {
 		c.lastMessageID,
 		text,
 	)
+	editedMessage.ParseMode = tgbotapi.ModeMarkdown
+
 	_, err := c.bot.Send(editedMessage)
 	if err != nil {
 		return fmt.Errorf("TelegramNotifyService → %v\n", err)
@@ -62,8 +67,12 @@ func (c *telegramNotifyService) UpdateLastMessage(text string) error {
 
 func (c *telegramNotifyService) SendNewChart(chart Chart, text string) error {
 	cnf := tgbotapi.NewPhoto(c.telegramChat, tgbotapi.FilePath(chart.Path))
+	cnf.ParseMode = tgbotapi.ModeMarkdown
 	if text != "" {
 		cnf.Caption = text
+		c.lastMsgText = text
+	} else {
+		cnf.Caption = c.lastMsgText
 	}
 
 	msg, err := c.bot.Send(cnf)
@@ -81,8 +90,12 @@ func (c *telegramNotifyService) UpdateLastChart(chart Chart, text string) error 
 	}
 
 	cnf := tgbotapi.NewInputMediaPhoto(tgbotapi.FilePath(chart.Path))
+	cnf.ParseMode = tgbotapi.ModeMarkdown
 	if text != "" {
 		cnf.Caption = text
+		c.lastMsgText = text
+	} else {
+		cnf.Caption = c.lastMsgText
 	}
 
 	_, err := c.bot.Send(tgbotapi.EditMessageMediaConfig{

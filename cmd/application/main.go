@@ -16,19 +16,17 @@ import (
 	"time"
 )
 
-var alertTemplate = `🚨 Wind Alert:
+var alertTemplate = `🚨 *Wind Alert* %s
 
-Date: %s
-Temperature: %s°C
-Wind Speed: %.1f m/s
+Temperature: *%s°C*
+Wind Speed: *%.1f m/s*
 `
 
-var windTemplate = `ℹ️ Wind Update:
+var windTemplate = `ℹ️ *Wind Update* %s
 
-Date: %s
-Temperature: %s°C
-Wind Speed: %.1f m/s
-Wind speed is now below the threshold.`
+Temperature: *%s°C*
+Wind Speed: *%.1f m/s*
+_Wind speed is now below the threshold._`
 
 var (
 	url                   string
@@ -135,8 +133,8 @@ func main() {
 	twilightSrv = NewTwilightService(timeReserveBeforeDusk)
 
 	for {
-		isTwilight, _ := twilightSrv.IsWorkNow()
-		if isTwilight {
+		isWorkTime, _ := twilightSrv.IsWorkNow()
+		if isWorkTime {
 			checkWeather()
 		}
 		time.Sleep(pollInterval)
@@ -172,16 +170,16 @@ func checkWeather() {
 		return
 	}
 
-	if windAlertActive {
-		chart, err := chartSrv.GetUpdatedChart()
-		if err != nil {
-			fmt.Printf("ChartService → %v\n", err)
-		} else {
-			err := notifySrv.UpdateLastChart(chart, "")
-			if err != nil {
-				fmt.Printf("Main → %v\n", err)
-			}
-		}
+	chart, err := chartSrv.GetUpdatedChart()
+	if err != nil {
+		fmt.Printf("ChartService → %v\n", err)
+		return
+	}
+
+	err = notifySrv.UpdateLastChart(chart, "")
+	if err != nil {
+		fmt.Printf("Main → %v\n", err)
+
 	}
 
 	if modifiedAt == lastModified {
@@ -238,20 +236,7 @@ func checkWeather() {
 	if windSpeed >= windThreshold {
 		lastWindAlertTime = time.Now()
 		if !windAlertActive {
-
-			chart, err := chartSrv.GetUpdatedChart()
-			if err != nil {
-				fmt.Printf("ChartService → %v\n", err)
-				return
-			}
-
-			err = notifySrv.SendNewMessage(fmt.Sprintf(alertTemplate, timestamp, temp, windSpeed))
-			if err != nil {
-				fmt.Printf("Main → %v\n", err)
-				return
-			}
-
-			err = notifySrv.SendNewChart(chart, "")
+			err = notifySrv.SendNewChart(chart, fmt.Sprintf(alertTemplate, timestamp, temp, windSpeed))
 			if err != nil {
 				fmt.Printf("Main → %v\n", err)
 				return
@@ -266,17 +251,8 @@ func checkWeather() {
 		if windAlertActive {
 			duration := time.Since(lastWindAlertTime)
 			if duration > DelayTime {
-				chart, err := chartSrv.GetUpdatedChart()
-				if err != nil {
-					fmt.Printf("CharrtService → %v\n", err)
-				} else {
-					err := notifySrv.UpdateLastChart(chart, "")
-					if err != nil {
-						fmt.Printf("Main → %v\n", err)
-					}
-				}
 
-				err = notifySrv.SendNewMessage(fmt.Sprintf(windTemplate, timestamp, temp, windSpeed))
+				err = notifySrv.SendNewChart(chart, fmt.Sprintf(windTemplate, timestamp, temp, windSpeed))
 				if err != nil {
 					fmt.Printf("Main → %v\n", err)
 					return
@@ -288,7 +264,7 @@ func checkWeather() {
 				fmt.Println("The wind speed is below the threshold, but the time has not come to cancel the alert.")
 			}
 		} else {
-			err = notifySrv.UpdateLastMessage(fmt.Sprintf(windTemplate, timestamp, temp, windSpeed))
+			err = notifySrv.UpdateLastChart(chart, fmt.Sprintf(windTemplate, timestamp, temp, windSpeed))
 			if err != nil {
 				fmt.Printf("Main → %v\n", err)
 				return
