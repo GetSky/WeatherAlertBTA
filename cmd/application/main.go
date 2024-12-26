@@ -6,6 +6,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"github.com/GetSky/WeatherAlertBTA/config"
 	. "github.com/GetSky/WeatherAlertBTA/internal/application"
 	. "github.com/GetSky/WeatherAlertBTA/internal/infrastructure"
 	"github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -28,16 +29,7 @@ Temperature: *%s°C*
 Wind Speed: *%.1f m/s*
 _Wind speed is now below the threshold._`
 
-var (
-	url                   string
-	botToken              string
-	telegramChat          string
-	windThreshold         float64
-	DelayTime             time.Duration
-	pollInterval          time.Duration
-	chartWeatherURL       string
-	timeReserveBeforeDusk time.Duration
-)
+var cnf *config.Conf
 
 var client *http.Client
 var chartSrv ChartService
@@ -53,91 +45,29 @@ var (
 func init() {
 	client = &http.Client{}
 
-	url = os.Getenv("WEATHER_URL")
-	if url == "" {
-		url = "https://relay.sao.ru/tb/tcs/meteo/data/meteo.dat"
-	}
-
-	chartWeatherURL = os.Getenv("CHART_WEATHER_URL")
-	if chartWeatherURL == "" {
-		chartWeatherURL = "https://www.sao.ru/tb/tcs/meteo/meteo_today.cgi"
-	}
-
-	botToken = os.Getenv("BOT_TOKEN")
-	if botToken == "" {
-		fmt.Println("BOT_TOKEN is not set")
-		os.Exit(1)
-	}
-
-	telegramChat = os.Getenv("TELEGRAM_CHAT_ID")
-	if telegramChat == "" {
-		fmt.Println("TELEGRAM_CHAT_ID is not set")
-		os.Exit(1)
-	}
-
 	var err error
-
-	thresholdStr := os.Getenv("WIND_THRESHOLD")
-	if thresholdStr == "" {
-		windThreshold = 14.5
-	} else {
-		windThreshold, err = strconv.ParseFloat(thresholdStr, 64)
-		if err != nil {
-			fmt.Printf("Failed to parse WIND_THRESHOLD: %v\n", err)
-			os.Exit(1)
-		}
-	}
-
-	intervalStr := os.Getenv("POLL_INTERVAL")
-	if intervalStr == "" {
-		pollInterval = 1 * time.Minute
-	} else {
-		pollInterval, err = time.ParseDuration(intervalStr)
-		if err != nil {
-			fmt.Printf("Failed to parse POLL_INTERVAL: %v\n", err)
-			os.Exit(1)
-		}
-	}
-
-	delayTimeInMinutesStr := os.Getenv("DELAY_TIME_IN_MINUTES")
-	if delayTimeInMinutesStr == "" {
-		DelayTime = 20 * time.Minute
-	} else {
-		DelayTime, err = time.ParseDuration(delayTimeInMinutesStr)
-		if err != nil {
-			fmt.Printf("Failed to parse DELAY_TIME_IN_MINUTES: %v\n", err)
-			os.Exit(1)
-		}
-	}
-
-	timeReserveBeforeDuskStr := os.Getenv("RESERVE_TIME_BEFORE_DUSK_IN_MINUTES")
-	if timeReserveBeforeDuskStr == "" {
-		timeReserveBeforeDusk = 120 * time.Minute
-	} else {
-		timeReserveBeforeDusk, err = time.ParseDuration(timeReserveBeforeDuskStr)
-		if err != nil {
-			fmt.Printf("Failed to parse RESERVE_TIME_BEFORE_DUSK_IN_MINUTES: %v\n", err)
-			os.Exit(1)
-		}
+	cnf, err = config.NewConf()
+	if err != nil {
+		return
 	}
 }
 
 func main() {
-	bot, err := tgbotapi.NewBotAPI(botToken)
+	bot, err := tgbotapi.NewBotAPI(cnf.BotToken)
 	if err != nil {
 		fmt.Printf("Failed to initialize bot: %v\n", err)
 		os.Exit(1)
 	}
-	chartSrv = NewChartService(chartWeatherURL)
-	notifySrv = NewTelegramNotifyService(bot, telegramChat)
-	twilightSrv = NewTwilightService(timeReserveBeforeDusk)
+	chartSrv = NewChartService(cnf.ChartWeatherUrl)
+	notifySrv = NewTelegramNotifyService(bot, cnf.TelegramChat)
+	twilightSrv = NewTwilightService(cnf.TimeReserveBeforeDusk)
 
 	for {
 		isWorkTime, _ := twilightSrv.IsWorkNow()
 		if isWorkTime {
 			checkWeather()
 		}
-		time.Sleep(pollInterval)
+		time.Sleep(cnf.PollInterval)
 	}
 }
 
@@ -164,7 +94,7 @@ func GetLastUpdate(url string) (string, error) {
 
 func checkWeather() {
 	// Checking for an updated file
-	modifiedAt, err := GetLastUpdate(url)
+	modifiedAt, err := GetLastUpdate(cnf.WeatherUrl)
 	if err != nil {
 		fmt.Printf("Failed to check last update: %v\n", err)
 		return
@@ -190,7 +120,7 @@ func checkWeather() {
 	lastModified = modifiedAt
 
 	// Use Range header to fetch only the last 66 bytes (approximately one line)
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest("GET", cnf.WeatherUrl, nil)
 	if err != nil {
 		fmt.Printf("Failed to create GET request: %v\n", err)
 		return
@@ -233,7 +163,7 @@ func checkWeather() {
 	temp := fields[3]
 	timestamp := fmt.Sprintf("%s %s", fields[0], fields[1])
 
-	if windSpeed >= windThreshold {
+	if windSpeed >= cnf.WindThreshold {
 		lastWindAlertTime = time.Now()
 		if !windAlertActive {
 			err = notifySrv.SendNewChart(chart, fmt.Sprintf(alertTemplate, timestamp, temp, windSpeed))
@@ -250,7 +180,7 @@ func checkWeather() {
 	} else {
 		if windAlertActive {
 			duration := time.Since(lastWindAlertTime)
-			if duration > DelayTime {
+			if duration > cnf.DelayTime {
 
 				err = notifySrv.SendNewChart(chart, fmt.Sprintf(windTemplate, timestamp, temp, windSpeed))
 				if err != nil {
