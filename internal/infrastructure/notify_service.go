@@ -9,14 +9,29 @@ import (
 	"github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"os"
 	"strconv"
+	"time"
 )
 
+var alertTemplate = `🚨 *Alert*
+
+Wind Speed: *%.1f m/s*
+Temperature: *%.1f°C*
+Update At: %s
+`
+
+var windTemplate = `ℹ️ *Update:*
+
+Wind Speed: *%.1f m/s*
+_Wind speed is now below the threshold._
+Temperature: *%.1f°C*
+Update At: %s
+`
+
 type telegramNotifyService struct {
-	bot           *tgbotapi.BotAPI
-	telegramChat  int64
-	lastChartID   int
-	lastMessageID int
-	lastMsgText   string
+	bot          *tgbotapi.BotAPI
+	telegramChat int64
+	lastChartID  int
+	lastData     Weather
 }
 
 func NewTelegramNotifyService(bot *tgbotapi.BotAPI, receiverKey string) NotifyService {
@@ -32,47 +47,33 @@ func NewTelegramNotifyService(bot *tgbotapi.BotAPI, receiverKey string) NotifySe
 	}
 }
 
-func (c *telegramNotifyService) SendNewMessage(text string) error {
-	message := tgbotapi.NewMessage(c.telegramChat, text)
-	message.ParseMode = tgbotapi.ModeMarkdown
+func (c *telegramNotifyService) SendUpdate(chart Chart, data Weather) error {
+	var cnf tgbotapi.Chattable
 
-	msg, err := c.bot.Send(message)
-	if err != nil {
-		return fmt.Errorf("TelegramNotifyService → %v\n", err)
-	}
-	c.lastMessageID = msg.MessageID
-
-	return nil
-}
-
-func (c *telegramNotifyService) UpdateLastMessage(text string) error {
-	if c.lastMessageID == 0 {
-		return c.SendNewMessage(text)
-	}
-
-	editedMessage := tgbotapi.NewEditMessageText(
-		c.telegramChat,
-		c.lastMessageID,
-		text,
-	)
-	editedMessage.ParseMode = tgbotapi.ModeMarkdown
-
-	_, err := c.bot.Send(editedMessage)
-	if err != nil {
-		return fmt.Errorf("TelegramNotifyService → %v\n", err)
-	}
-
-	return nil
-}
-
-func (c *telegramNotifyService) SendNewChart(chart Chart, text string) error {
-	cnf := tgbotapi.NewPhoto(c.telegramChat, tgbotapi.FilePath(chart.Path))
-	cnf.ParseMode = tgbotapi.ModeMarkdown
-	if text != "" {
-		cnf.Caption = text
-		c.lastMsgText = text
+	if data.Hazardous != c.lastData.Hazardous || c.lastChartID == 0 {
+		cnf = tgbotapi.PhotoConfig{
+			BaseFile: tgbotapi.BaseFile{
+				BaseChat: tgbotapi.BaseChat{ChatID: c.telegramChat},
+				File:     tgbotapi.FilePath(chart.Path),
+			},
+			ParseMode: tgbotapi.ModeMarkdown,
+			Caption:   c.prepareMessageUpdate(data),
+		}
 	} else {
-		cnf.Caption = c.lastMsgText
+		cnf = tgbotapi.EditMessageMediaConfig{
+			BaseEdit: tgbotapi.BaseEdit{
+				MessageID: c.lastChartID,
+				ChatID:    c.telegramChat,
+			},
+			Media: tgbotapi.InputMediaPhoto{
+				BaseInputMedia: tgbotapi.BaseInputMedia{
+					Type:      "photo",
+					Media:     tgbotapi.FilePath(chart.Path),
+					ParseMode: tgbotapi.ModeMarkdown,
+					Caption:   c.prepareMessageUpdate(data),
+				},
+			},
+		}
 	}
 
 	msg, err := c.bot.Send(cnf)
@@ -84,30 +85,42 @@ func (c *telegramNotifyService) SendNewChart(chart Chart, text string) error {
 	return nil
 }
 
-func (c *telegramNotifyService) UpdateLastChart(chart Chart, text string) error {
-	if c.lastChartID == 0 {
-		return nil
-	}
-
-	cnf := tgbotapi.NewInputMediaPhoto(tgbotapi.FilePath(chart.Path))
-	cnf.ParseMode = tgbotapi.ModeMarkdown
-	if text != "" {
-		cnf.Caption = text
-		c.lastMsgText = text
+func (c *telegramNotifyService) prepareMessageUpdate(data Weather) string {
+	var template string
+	if data.Hazardous {
+		template = alertTemplate
 	} else {
-		cnf.Caption = c.lastMsgText
+		template = windTemplate
 	}
 
-	_, err := c.bot.Send(tgbotapi.EditMessageMediaConfig{
-		BaseEdit: tgbotapi.BaseEdit{
-			MessageID: c.lastChartID,
-			ChatID:    c.telegramChat,
+	return fmt.Sprintf(template, data.WindSpeed, data.Temperature, data.UpdateAt.Format(time.TimeOnly))
+}
+
+func (c *telegramNotifyService) SendWorkStarted(chart Chart, data Weather) error {
+	_, err := c.bot.Send(tgbotapi.MessageConfig{
+		BaseChat: tgbotapi.BaseChat{
+			ChatID: c.telegramChat,
 		},
-		Media: cnf,
+		Text: "Start.",
 	})
 
 	if err != nil {
-		return fmt.Errorf("TelegramNotifyService → %v", err)
+		return fmt.Errorf("TelegramNotifyService → %v\n", err)
+	}
+
+	return nil
+}
+
+func (c *telegramNotifyService) SendWorkEnded(chart Chart, data Weather) error {
+	_, err := c.bot.Send(tgbotapi.MessageConfig{
+		BaseChat: tgbotapi.BaseChat{
+			ChatID: c.telegramChat,
+		},
+		Text: "End.",
+	})
+
+	if err != nil {
+		return fmt.Errorf("TelegramNotifyService → %v\n", err)
 	}
 
 	return nil

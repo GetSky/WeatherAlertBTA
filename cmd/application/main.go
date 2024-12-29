@@ -106,11 +106,12 @@ func checkWeather() {
 		return
 	}
 
+	/* ToDo: Return logic after transfer to weather data receiving service
 	err = notifySrv.UpdateLastChart(chart, "")
 	if err != nil {
 		fmt.Printf("Main → %v\n", err)
-
 	}
+	*/
 
 	if modifiedAt == lastModified {
 		fmt.Println("Data has not changed since last check.")
@@ -160,13 +161,30 @@ func checkWeather() {
 		return
 	}
 
-	temp := fields[3]
+	temp, err := strconv.ParseFloat(fields[3], 64)
+	if err != nil {
+		fmt.Printf("Error parsing temperature: %v\n", err)
+		return
+	}
+
 	timestamp := fmt.Sprintf("%s %s", fields[0], fields[1])
+	updateAt, err := time.Parse("02-Jan-2006 15:04:05", timestamp)
+	if err != nil {
+		fmt.Printf("Error parsing date time: %v\n", err)
+		return
+	}
+
+	data := Weather{
+		UpdateAt:    updateAt,
+		Temperature: temp,
+		WindSpeed:   windSpeed,
+	}
 
 	if windSpeed >= cnf.WindThreshold {
 		lastWindAlertTime = time.Now()
 		if !windAlertActive {
-			err = notifySrv.SendNewChart(chart, fmt.Sprintf(alertTemplate, timestamp, temp, windSpeed))
+			data.Hazardous = true
+			err = notifySrv.SendUpdate(chart, data)
 			if err != nil {
 				fmt.Printf("Main → %v\n", err)
 				return
@@ -182,7 +200,8 @@ func checkWeather() {
 			duration := time.Since(lastWindAlertTime)
 			if duration > cnf.DelayTime {
 
-				err = notifySrv.SendNewChart(chart, fmt.Sprintf(windTemplate, timestamp, temp, windSpeed))
+				data.Hazardous = false
+				err = notifySrv.SendUpdate(chart, data)
 				if err != nil {
 					fmt.Printf("Main → %v\n", err)
 					return
@@ -194,7 +213,8 @@ func checkWeather() {
 				fmt.Println("The wind speed is below the threshold, but the time has not come to cancel the alert.")
 			}
 		} else {
-			err = notifySrv.UpdateLastChart(chart, fmt.Sprintf(windTemplate, timestamp, temp, windSpeed))
+			data.Hazardous = false
+			err = notifySrv.SendUpdate(chart, data)
 			if err != nil {
 				fmt.Printf("Main → %v\n", err)
 				return
