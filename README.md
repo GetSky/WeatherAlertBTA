@@ -33,7 +33,7 @@ RESERVE_TIME_BEFORE_DUSK_IN_MINUTES=120m
 Run the application:
 
 ```shell
-go run main.go
+go run .\cmd\application\main.go
 ```
 
 Or using Docker:
