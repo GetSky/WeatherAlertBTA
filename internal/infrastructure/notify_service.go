@@ -12,15 +12,14 @@ import (
 	"time"
 )
 
-var alertTemplate = `🚨 *Alert*
+var alertTemplate = `🚨 *Alert* 🚨
 
 Wind Speed: *%.1f m/s*
 Temperature: *%.1f°C*
 Update At: %s
 `
 
-var windTemplate = `ℹ️ *Update:*
-
+var windTemplate = `
 Wind Speed: *%.1f m/s*
 _Wind speed is now below the threshold._
 Temperature: *%.1f°C*
