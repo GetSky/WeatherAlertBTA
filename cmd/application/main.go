@@ -181,20 +181,18 @@ func checkWeather() {
 	}
 
 	if windSpeed >= cnf.WindThreshold {
+		data.Hazardous = true
 		lastWindAlertTime = time.Now()
-		if !windAlertActive {
-			data.Hazardous = true
-			err = notifySrv.SendUpdate(chart, data)
-			if err != nil {
-				fmt.Printf("Main → %v\n", err)
-				return
-			}
+		windAlertActive = true
 
-			windAlertActive = true
-			fmt.Println("Wind alert sent successfully.")
-		} else {
-			fmt.Println("Wind alert already active. No message sent.")
+		err = notifySrv.SendUpdate(chart, data)
+		if err != nil {
+			fmt.Printf("Main → %v\n", err)
+			return
 		}
+
+		fmt.Println("Wind alert sent successfully.")
+
 	} else {
 		if windAlertActive {
 			duration := time.Since(lastWindAlertTime)
