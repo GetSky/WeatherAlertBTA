@@ -13,6 +13,7 @@ type NotifyService interface {
 
 type ScheduleService interface {
 	IsWorkNow() (bool, error)
+	GetNautical(date time.Time) (dusk time.Time, dawn time.Time, err error)
 }
 
 type ChartService interface {

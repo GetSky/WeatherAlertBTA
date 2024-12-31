@@ -34,7 +34,7 @@ var cnf *config.Conf
 var client *http.Client
 var chartSrv ChartService
 var notifySrv NotifyService
-var twilightSrv ScheduleService
+var scheduleSrv ScheduleService
 
 var (
 	lastModified      string
@@ -60,10 +60,10 @@ func main() {
 	}
 	chartSrv = NewChartService(cnf.ChartWeatherUrl)
 	notifySrv = NewTelegramNotifyService(bot, cnf.TelegramChat)
-	twilightSrv = NewTwilightService(cnf.TimeReserveBeforeDusk)
+	scheduleSrv = NewScheduleService(cnf.TimeReserveBeforeDusk)
 
 	for {
-		isWorkTime, _ := twilightSrv.IsWorkNow()
+		isWorkTime, _ := scheduleSrv.IsWorkNow()
 		if isWorkTime {
 			checkWeather()
 		}
