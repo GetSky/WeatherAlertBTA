@@ -6,11 +6,9 @@ package application
 import "time"
 
 type NotifyService interface {
-	SendNewMessage(text string) error
-	UpdateLastMessage(text string) error
-
-	SendNewChart(chart Chart, text string) error
-	UpdateLastChart(chart Chart, text string) error
+	SendWorkStarted(chart Chart, data Weather) error
+	SendWorkEnded(chart Chart, data Weather) error
+	SendUpdate(chart Chart, data Weather) error
 }
 
 type ScheduleService interface {
@@ -24,4 +22,11 @@ type ChartService interface {
 type Chart struct {
 	Path     string
 	CreateAt time.Time
+}
+
+type Weather struct {
+	WindSpeed   float64
+	Temperature float64
+	Hazardous   bool
+	UpdateAt    time.Time
 }
