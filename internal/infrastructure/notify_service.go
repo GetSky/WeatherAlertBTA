@@ -80,6 +80,7 @@ func (c *telegramNotifyService) SendUpdate(chart Chart, data Weather) error {
 		return fmt.Errorf("TelegramNotifyService → %v", err)
 	}
 	c.lastChartID = msg.MessageID
+	c.lastData = data
 
 	return nil
 }
