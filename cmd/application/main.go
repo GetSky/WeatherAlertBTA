@@ -38,6 +38,7 @@ var scheduleSrv ScheduleService
 
 var (
 	lastModified      string
+	workActive        bool
 	windAlertActive   bool
 	lastWindAlertTime time.Time
 )
@@ -64,8 +65,30 @@ func main() {
 
 	for {
 		isWorkTime, _ := scheduleSrv.IsWorkNow()
+		if isWorkTime != workActive {
+			workActive = isWorkTime
+			if workActive {
+				dusk, dawn, err := scheduleSrv.GetNautical(time.Now())
+				if err != nil {
+					fmt.Printf("Main → %v\n", err)
+					return
+				}
+				err = notifySrv.SendWorkStarted(dusk, dawn)
+				if err != nil {
+					fmt.Printf("Main → %v\n", err)
+					return
+				}
+			} else {
+				err = notifySrv.SendWorkEnded()
+				if err != nil {
+					fmt.Printf("Main → %v\n", err)
+					return
+				}
+			}
+		}
 		if isWorkTime {
 			checkWeather()
+		} else {
 		}
 		time.Sleep(cnf.PollInterval)
 	}

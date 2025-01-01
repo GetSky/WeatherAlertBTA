@@ -6,8 +6,8 @@ package application
 import "time"
 
 type NotifyService interface {
-	SendWorkStarted(chart Chart, data Weather) error
-	SendWorkEnded(chart Chart, data Weather) error
+	SendWorkStarted(dusk time.Time, dawn time.Time) error
+	SendWorkEnded() error
 	SendUpdate(chart Chart, data Weather) error
 }
 

@@ -26,6 +26,15 @@ Temperature: *%.1f°C*
 Update At: %s
 `
 
+var startMassageTemplate = `
+Start monitoring the weather.
+Nautical twilight today from *%s* to *%s*.
+`
+
+var endMassageTemplate = `
+End of weather monitoring.
+`
+
 type telegramNotifyService struct {
 	bot          *tgbotapi.BotAPI
 	telegramChat int64
@@ -96,32 +105,40 @@ func (c *telegramNotifyService) prepareMessageUpdate(data Weather) string {
 	return fmt.Sprintf(template, data.WindSpeed, data.Temperature, data.UpdateAt.Format(time.TimeOnly))
 }
 
-func (c *telegramNotifyService) SendWorkStarted(chart Chart, data Weather) error {
+func (c *telegramNotifyService) SendWorkStarted(dusk time.Time, dawn time.Time) error {
 	_, err := c.bot.Send(tgbotapi.MessageConfig{
 		BaseChat: tgbotapi.BaseChat{
 			ChatID: c.telegramChat,
 		},
-		Text: "Start.",
+		Text:      fmt.Sprintf(startMassageTemplate, dusk.Format("15:04 MST"), dawn.Format("15:04 MST")),
+		ParseMode: tgbotapi.ModeMarkdown,
 	})
 
 	if err != nil {
 		return fmt.Errorf("TelegramNotifyService → %v\n", err)
 	}
+
+	c.lastChartID = 0
+	c.lastData = Weather{}
 
 	return nil
 }
 
-func (c *telegramNotifyService) SendWorkEnded(chart Chart, data Weather) error {
+func (c *telegramNotifyService) SendWorkEnded() error {
 	_, err := c.bot.Send(tgbotapi.MessageConfig{
 		BaseChat: tgbotapi.BaseChat{
 			ChatID: c.telegramChat,
 		},
-		Text: "End.",
+		Text:      endMassageTemplate,
+		ParseMode: tgbotapi.ModeMarkdown,
 	})
 
 	if err != nil {
 		return fmt.Errorf("TelegramNotifyService → %v\n", err)
 	}
+
+	c.lastChartID = 0
+	c.lastData = Weather{}
 
 	return nil
 }
