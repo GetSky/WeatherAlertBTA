@@ -11,7 +11,7 @@ import (
 
 type Conf struct {
 	WeatherUrl      string  `env:"WEATHER_URL" envDefault:"https://relay.sao.ru/tb/tcs/meteo/data/meteo.dat"`
-	ChartWeatherUrl string  `env:"WEATHER_URL" envDefault:"https://www.sao.ru/tb/tcs/meteo/meteo_today.cgi"`
+	ChartWeatherUrl string  `env:"CHART_WEATHER_URL" envDefault:"https://www.sao.ru/tb/tcs/meteo/meteo_today.cgi"`
 	BotToken        string  `env:"BOT_TOKEN,required"`
 	TelegramChat    string  `env:"TELEGRAM_CHAT_ID,required"`
 	WindThreshold   float64 `env:"WIND_THRESHOLD" envDefault:"14.5"`
