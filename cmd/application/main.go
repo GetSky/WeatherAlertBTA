@@ -34,10 +34,11 @@ var cnf *config.Conf
 var client *http.Client
 var chartSrv ChartService
 var notifySrv NotifyService
-var twilightSrv ScheduleService
+var scheduleSrv ScheduleService
 
 var (
 	lastModified      string
+	workActive        bool
 	windAlertActive   bool
 	lastWindAlertTime time.Time
 )
@@ -60,12 +61,34 @@ func main() {
 	}
 	chartSrv = NewChartService(cnf.ChartWeatherUrl)
 	notifySrv = NewTelegramNotifyService(bot, cnf.TelegramChat)
-	twilightSrv = NewTwilightService(cnf.TimeReserveBeforeDusk)
+	scheduleSrv = NewScheduleService(cnf.TimeReserveBeforeDusk)
 
 	for {
-		isWorkTime, _ := twilightSrv.IsWorkNow()
+		isWorkTime, _ := scheduleSrv.IsWorkNow()
+		if isWorkTime != workActive {
+			workActive = isWorkTime
+			if workActive {
+				dusk, dawn, err := scheduleSrv.GetNautical(time.Now())
+				if err != nil {
+					fmt.Printf("Main → %v\n", err)
+					return
+				}
+				err = notifySrv.SendWorkStarted(dusk, dawn)
+				if err != nil {
+					fmt.Printf("Main → %v\n", err)
+					return
+				}
+			} else {
+				err = notifySrv.SendWorkEnded()
+				if err != nil {
+					fmt.Printf("Main → %v\n", err)
+					return
+				}
+			}
+		}
 		if isWorkTime {
 			checkWeather()
+		} else {
 		}
 		time.Sleep(cnf.PollInterval)
 	}
