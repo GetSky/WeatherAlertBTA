@@ -20,6 +20,10 @@ type ChartService interface {
 	GetUpdatedChart() (Chart, error)
 }
 
+type WeatherService interface {
+	GetLatestWeather() (Weather, error)
+}
+
 type Chart struct {
 	Path     string
 	CreateAt time.Time
