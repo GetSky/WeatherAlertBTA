@@ -42,7 +42,12 @@ type telegramNotifyService struct {
 	lastData     Weather
 }
 
-func NewTelegramNotifyService(bot *tgbotapi.BotAPI, receiverKey string) NotifyService {
+func NewTelegramNotifyService(botToken string, receiverKey string) NotifyService {
+	bot, err := tgbotapi.NewBotAPI(botToken)
+	if err != nil {
+		fmt.Printf("Failed to initialize bot: %v\n", err)
+		os.Exit(1)
+	}
 	chat, err := strconv.ParseInt(receiverKey, 10, 64)
 	if err != nil {
 		fmt.Printf("Failed to parse receiverKey: %v\n", err)

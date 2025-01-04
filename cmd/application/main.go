@@ -6,19 +6,17 @@ package main
 import (
 	"fmt"
 	"github.com/GetSky/WeatherAlertBTA/config"
-	. "github.com/GetSky/WeatherAlertBTA/internal/application"
-	. "github.com/GetSky/WeatherAlertBTA/internal/infrastructure"
-	"github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"os"
+	"github.com/GetSky/WeatherAlertBTA/internal/application"
+	"github.com/GetSky/WeatherAlertBTA/internal/infrastructure"
 	"time"
 )
 
 var cnf *config.Conf
 
-var weatherSrv WeatherService
-var chartSrv ChartService
-var notifySrv NotifyService
-var scheduleSrv ScheduleService
+var weatherSrv application.WeatherService
+var chartSrv application.ChartService
+var notifySrv application.NotifyService
+var scheduleSrv application.ScheduleService
 
 var (
 	workActive        bool
@@ -32,47 +30,47 @@ func init() {
 	if err != nil {
 		return
 	}
+
+	chartSrv = infrastructure.NewChartService(cnf.ChartWeatherUrl)
+	weatherSrv = infrastructure.NewWeatherService(cnf.WeatherUrl)
+	notifySrv = infrastructure.NewTelegramNotifyService(cnf.BotToken, cnf.TelegramChat)
+	scheduleSrv = infrastructure.NewScheduleService(cnf.TimeReserveBeforeDusk)
 }
 
 func main() {
-	bot, err := tgbotapi.NewBotAPI(cnf.BotToken)
-	if err != nil {
-		fmt.Printf("Failed to initialize bot: %v\n", err)
-		os.Exit(1)
-	}
-	chartSrv = NewChartService(cnf.ChartWeatherUrl)
-	weatherSrv = NewWeatherService(cnf.WeatherUrl)
-	notifySrv = NewTelegramNotifyService(bot, cnf.TelegramChat)
-	scheduleSrv = NewScheduleService(cnf.TimeReserveBeforeDusk)
-
 	for {
 		isWorkTime, _ := scheduleSrv.IsWorkNow()
 		if isWorkTime != workActive {
 			workActive = isWorkTime
-			if workActive {
-				dusk, dawn, err := scheduleSrv.GetNautical(time.Now())
-				if err != nil {
-					fmt.Printf("Main → %v\n", err)
-					return
-				}
-				err = notifySrv.SendWorkStarted(dusk, dawn)
-				if err != nil {
-					fmt.Printf("Main → %v\n", err)
-					return
-				}
-			} else {
-				err = notifySrv.SendWorkEnded()
-				if err != nil {
-					fmt.Printf("Main → %v\n", err)
-					return
-				}
-			}
+			checkWorkStatus()
 		}
 		if isWorkTime {
 			checkWeather()
 		} else {
 		}
 		time.Sleep(cnf.PollInterval)
+	}
+}
+
+func checkWorkStatus() {
+	switch workActive {
+	case true:
+		dusk, dawn, err := scheduleSrv.GetNautical(time.Now())
+		if err != nil {
+			fmt.Printf("Main → %v\n", err)
+			return
+		}
+		err = notifySrv.SendWorkStarted(dusk, dawn)
+		if err != nil {
+			fmt.Printf("Main → %v\n", err)
+			return
+		}
+	case false:
+		err := notifySrv.SendWorkEnded()
+		if err != nil {
+			fmt.Printf("Main → %v\n", err)
+			return
+		}
 	}
 }
 
