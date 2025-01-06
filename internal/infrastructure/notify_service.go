@@ -27,12 +27,12 @@ Update At: %s
 `
 
 var startMassageTemplate = `
-Start monitoring the weather.
+Starting a weather watch.
 Nautical twilight today from *%s* to *%s*.
 `
 
 var endMassageTemplate = `
-End of weather monitoring.
+Finishing a weather watch.
 `
 
 type telegramNotifyService struct {
